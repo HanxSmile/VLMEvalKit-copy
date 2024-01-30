@@ -1,4 +1,4 @@
-import torch 
+import torch
 import torch.distributed as dist
 import datetime
 from vlmeval.config import supported_VLM
@@ -6,6 +6,7 @@ from vlmeval.utils import TSVDataset, track_progress_rich, split_MMMU
 from vlmeval.smp import *
 
 FAIL_MSG = 'Failed to obtain answer via API.'
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -16,9 +17,10 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+
 # Only API model is accepted
 def infer_data_api(model_name, dataset_name, index_set, api_nproc=4):
-    rank, world_size = get_rank_and_world_size()   
+    rank, world_size = get_rank_and_world_size()
     assert rank == 0 and world_size == 1
     dataset = TSVDataset(dataset_name)
     data = dataset.data
@@ -27,19 +29,19 @@ def infer_data_api(model_name, dataset_name, index_set, api_nproc=4):
     model = supported_VLM[model_name]() if isinstance(model_name, str) else model_name
     is_api = getattr(model, 'is_api', False)
     assert is_api
-    
+
     lt, indices = len(data), list(data['index'])
     structs = [dataset.build_prompt(data.iloc[i]) for i in range(lt)]
-    
+
     out_file = f'{model_name}/{model_name}_{dataset_name}_supp.pkl'
     res = {}
     if osp.exists(out_file):
         res = load(out_file)
         res = {k: v for k, v in res.items() if FAIL_MSG not in v}
-    
+
     structs = [s for i, s in zip(indices, structs) if i not in res]
     indices = [i for i in indices if i not in res]
-    
+
     gen_func = None
     if listinstr(['MMMU'], dataset_name):
         assert hasattr(model, 'interleave_generate')
@@ -55,19 +57,20 @@ def infer_data_api(model_name, dataset_name, index_set, api_nproc=4):
 
     inference_results = track_progress_rich(
         gen_func, structs, nproc=api_nproc, chunksize=api_nproc, save=out_file, keys=indices)
-    
+
     res = load(out_file)
     for idx, text in zip(indices, inference_results):
         assert (res[idx] == text if idx in res else True)
         res[idx] = text
     return res
 
+
 def infer_data(model_name, dataset_name, out_file, verbose=False, api_nproc=4):
     res = {}
     if osp.exists(out_file):
         res = load(out_file)
 
-    rank, world_size = get_rank_and_world_size()   
+    rank, world_size = get_rank_and_world_size()
     if rank == 0:
         dataset = TSVDataset(dataset_name)
     if world_size > 1:
@@ -85,7 +88,7 @@ def infer_data(model_name, dataset_name, out_file, verbose=False, api_nproc=4):
         if idx not in res:
             all_finished = False
     if all_finished:
-        return 
+        return
     data = data[~data['index'].isin(res)]
     lt = len(data)
 
@@ -95,7 +98,8 @@ def infer_data(model_name, dataset_name, out_file, verbose=False, api_nproc=4):
     if is_api:
         assert world_size == 1
         lt, indices = len(data), list(data['index'])
-        supp = infer_data_api(model_name=model_name, dataset_name=dataset_name, index_set=set(indices), api_nproc=api_nproc)
+        supp = infer_data_api(model_name=model_name, dataset_name=dataset_name, index_set=set(indices),
+                              api_nproc=api_nproc)
         for idx in indices:
             assert idx in supp
         res.update(supp)
@@ -125,7 +129,7 @@ def infer_data(model_name, dataset_name, out_file, verbose=False, api_nproc=4):
         else:
             response = model.generate(prompt=struct['text'], image_path=struct['image'], dataset=dataset_name)
         torch.cuda.empty_cache()
-        
+
         if verbose:
             print(response, flush=True)
 
@@ -135,6 +139,7 @@ def infer_data(model_name, dataset_name, out_file, verbose=False, api_nproc=4):
 
     dump(res, out_file)
     return model
+
 
 def prefetch_acc(result_file):
     data = load(result_file)
@@ -170,10 +175,10 @@ def prefetch_acc(result_file):
     res = pd.DataFrame(res)
     return res
 
-def infer_data_job(model, model_name, dataset_name, verbose=False, api_nproc=4, ignore_failed=False):
 
+def infer_data_job(model, model_name, dataset_name, verbose=False, api_nproc=4, ignore_failed=False):
     result_file = f'{model_name}/{model_name}_{dataset_name}.xlsx'
-    rank, world_size = get_rank_and_world_size()   
+    rank, world_size = get_rank_and_world_size()
     tmpl = f'{model_name}/' + '{}' + f'{world_size}_{dataset_name}.pkl'
     out_file = tmpl.format(rank)
 
@@ -191,8 +196,8 @@ def infer_data_job(model, model_name, dataset_name, verbose=False, api_nproc=4, 
             assert len(data_all) == len(data)
             data['prediction'] = [str(data_all[x]) for x in data['index']]
             data.pop('image')
-            
-            dump(data, result_file)             
+
+            dump(data, result_file)
             for i in range(world_size):
                 os.remove(tmpl.format(i))
         return model
@@ -213,6 +218,7 @@ def infer_data_job(model, model_name, dataset_name, verbose=False, api_nproc=4, 
             data['prediction'] = [str(answer_map[x]) for x in data['index']]
             dump(data, result_file)
         return model_name
+
 
 def main():
     logger = get_logger('Inference')
@@ -235,19 +241,22 @@ def main():
             if dataset_name == 'CORE_MM':
                 MULTI_IMG = getattr(supported_VLM[model_name].func, 'multi_generate', None)
                 if MULTI_IMG is not None:
-                    logger.error(f'Model {model_name} does not support the `multi_generate` interface, which is required for testing CORE_MM, skip it. ')
+                    logger.error(
+                        f'Model {model_name} does not support the `multi_generate` interface, which is required for testing CORE_MM, skip it. ')
                     continue
 
             result_file = f'{pred_root}/{model_name}_{dataset_name}.xlsx'
             if model is None:
-                model = model_name # which is only a name
-            model = infer_data_job(model, model_name=model_name, dataset_name=dataset_name, verbose=args.verbose, api_nproc=args.nproc)
-                         
+                model = model_name  # which is only a name
+            model = infer_data_job(model, model_name=model_name, dataset_name=dataset_name, verbose=args.verbose,
+                                   api_nproc=args.nproc)
+
             if rank == 0 and listinstr(['MMBench', 'CCBench', 'SEEDBench', 'ScienceQA', 'MMMU'], dataset_name):
                 time.sleep(3)
                 res = prefetch_acc(result_file)
                 print(model_name, res)
                 dump(res, result_file.replace('.xlsx', '_prefetch.xlsx'))
-                
+
+
 if __name__ == '__main__':
     main()

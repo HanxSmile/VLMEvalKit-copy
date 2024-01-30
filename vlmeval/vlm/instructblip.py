@@ -7,18 +7,17 @@ from ..smp import *
 
 
 class InstructBLIP:
-
     INSTALL_REQ = True
 
     def __init__(self, name):
         self.config_map = {
-            'instructblip_7b': f'misc/blip2_instruct_vicuna7b.yaml', 
-            'instructblip_13b': f'misc/blip2_instruct_vicuna13b.yaml', 
+            'instructblip_7b': f'misc/blip2_instruct_vicuna7b.yaml',
+            'instructblip_13b': f'misc/blip2_instruct_vicuna13b.yaml',
         }
 
         self.file_path = __file__
         config_root = osp.dirname(self.file_path)
-            
+
         try:
             from lavis.models import load_preprocess
             from omegaconf import OmegaConf

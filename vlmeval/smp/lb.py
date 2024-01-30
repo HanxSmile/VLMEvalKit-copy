@@ -26,7 +26,8 @@ This leaderboard was last updated: {}.
 """
 # CONSTANTS-FIELDS
 META_FIELDS = ['Method', 'Parameters (B)', 'Language Model', 'Vision Model', 'OpenSource', 'Verified']
-MAIN_FIELDS = ['MMBench_TEST_EN', 'MMBench_TEST_CN', 'CCBench', 'MME', 'SEEDBench_IMG', 'MMVet', 'MMMU_VAL', 'MathVista', 'HallusionBench', 'LLaVABench']
+MAIN_FIELDS = ['MMBench_TEST_EN', 'MMBench_TEST_CN', 'CCBench', 'MME', 'SEEDBench_IMG', 'MMVet', 'MMMU_VAL',
+               'MathVista', 'HallusionBench', 'LLaVABench']
 MMBENCH_FIELDS = ['MMBench_TEST_EN', 'MMBench_DEV_EN', 'MMBench_TEST_CN', 'MMBench_DEV_CN', 'CCBench']
 MODEL_SIZE = ['<10B', '10B-20B', '20B-40B', '>40B', 'Unknown']
 MODEL_TYPE = ['API', 'OpenSource', 'Proprietary']
@@ -111,15 +112,21 @@ LEADERBOARD_MD = {
 
 from urllib.request import urlopen
 
+
 def load_results():
     data = json.loads(urlopen(URL).read())
     return data
 
+
 def nth_large(val, vals):
     return sum([1 for v in vals if v > val]) + 1
 
+
 def format_timestamp(timestamp):
-    return timestamp[:2] + '.' + timestamp[2:4] + '.' + timestamp[4:6] + ' ' + timestamp[6:8] + ':' + timestamp[8:10] + ':' + timestamp[10:12]
+    return timestamp[:2] + '.' + timestamp[2:4] + '.' + timestamp[4:6] + ' ' + timestamp[6:8] + ':' + timestamp[
+                                                                                                      8:10] + ':' + timestamp[
+                                                                                                                    10:12]
+
 
 def model_size_flag(sz, FIELDS):
     if pd.isna(sz) and 'Unknown' in FIELDS:
@@ -136,6 +143,7 @@ def model_size_flag(sz, FIELDS):
         return True
     return False
 
+
 def model_type_flag(line, FIELDS):
     if 'OpenSource' in FIELDS and line['OpenSource'] == 'Yes':
         return True
@@ -144,6 +152,7 @@ def model_type_flag(line, FIELDS):
     if 'Proprietary' in FIELDS and line['OpenSource'] == 'No' and line['Verified'] == 'No':
         return True
     return False
+
 
 def BUILD_L1_DF(results, fields):
     res = defaultdict(list)
@@ -169,7 +178,7 @@ def BUILD_L1_DF(results, fields):
 
     df = pd.DataFrame(res)
     df = df.sort_values('Avg Rank')
-    
+
     check_box = {}
     check_box['essential'] = ['Method', 'Parameters (B)', 'Language Model', 'Vision Model']
     check_box['required'] = ['Avg Score', 'Avg Rank']
@@ -179,7 +188,8 @@ def BUILD_L1_DF(results, fields):
     type_map['Language Model'] = type_map['Vision Model'] = type_map['OpenSource'] = type_map['Verified'] = 'str'
     check_box['type_map'] = type_map
     return df, check_box
-        
+
+
 def BUILD_L2_DF(results, dataset):
     res = defaultdict(list)
     fields = list(list(results.values())[0][dataset].keys())
@@ -188,7 +198,7 @@ def BUILD_L2_DF(results, dataset):
     if dataset == 'MME':
         non_overall_fields = [x for x in non_overall_fields if not listinstr(['Perception', 'Cognition', 'Total'], x)]
         overall_fields = ['Perception', 'Cognition', 'Total']
-    
+
     for m in results:
         item = results[m]
         meta = item['META']
@@ -202,7 +212,7 @@ def BUILD_L2_DF(results, dataset):
             else:
                 res[k].append(meta[k])
         fields = [x for x in fields]
-    
+
         for d in non_overall_fields:
             res[d].append(item[dataset][d])
         for d in overall_fields:
@@ -211,7 +221,7 @@ def BUILD_L2_DF(results, dataset):
     df = pd.DataFrame(res)
     df = df.sort_values('Overall' if dataset != 'MME' else 'Total')
     df = df.iloc[::-1]
-    
+
     check_box = {}
     check_box['essential'] = ['Method', 'Parameters (B)', 'Language Model', 'Vision Model']
     check_box['required'] = overall_fields

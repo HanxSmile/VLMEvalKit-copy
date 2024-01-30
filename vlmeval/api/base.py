@@ -3,16 +3,17 @@ import random as rd
 from abc import abstractmethod
 from ..smp import get_logger
 
+
 class BaseAPI:
-    
-    def __init__(self, 
-                 retry=10, 
-                 wait=3, 
-                 system_prompt=None, 
+
+    def __init__(self,
+                 retry=10,
+                 wait=3,
+                 system_prompt=None,
                  verbose=True,
                  fail_msg='Failed to obtain answer via API.',
                  **kwargs):
-        self.wait = wait 
+        self.wait = wait
         self.retry = retry
         self.system_prompt = system_prompt
         self.kwargs = kwargs
@@ -57,8 +58,5 @@ class BaseAPI:
                 if self.verbose:
                     self.logger.error(f'An error occured during try {i}:')
                     self.logger.error(err)
-        
-        return self.fail_msg if answer in ['', None] else answer
-        
 
-        
+        return self.fail_msg if answer in ['', None] else answer

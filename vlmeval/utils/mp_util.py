@@ -19,7 +19,7 @@ class _Worker:
     def __call__(self, inputs):
         inputs, idx = inputs
         if not isinstance(inputs, (tuple, list, dict)):
-            inputs = (inputs, )
+            inputs = (inputs,)
 
         if isinstance(inputs, dict):
             return self.func(**inputs), idx
@@ -49,6 +49,7 @@ def _tasks_with_index(tasks):
     """Add index to tasks."""
     for idx, task in enumerate(tasks):
         yield task, idx
+
 
 def track_progress_rich(func: Callable,
                         tasks: Iterable = tuple(),
@@ -156,7 +157,7 @@ def track_progress_rich(func: Callable,
                         dump(ans, save)
                         fh.flush()
                         os.fsync(fh.fileno())
-                
+
                 prog_bar.update(task_id, advance=1, refresh=True)
         else:
             with Pool(nproc) as pool:

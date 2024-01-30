@@ -3,12 +3,13 @@ import copy as cp
 import os
 from ..smp import *
 
+
 def can_infer_option(answer, choices):
     verbose = os.environ.get('VERBOSE', 0)
     # Choices is a dictionary
     if 'Failed to obtain answer via API' in answer:
         return False
-    
+
     bard_err = [
         "Sorry, I can't help with images of people yet.",
         "I can't process this file."
@@ -16,7 +17,7 @@ def can_infer_option(answer, choices):
     for err in bard_err:
         if err in answer:
             return 'Z'
-    
+
     def count_choice(splits, choices, prefix='', suffix=''):
         cnt = 0
         for c in choices:
@@ -28,7 +29,7 @@ def can_infer_option(answer, choices):
     chars = '.()[],:;!*#{}'
     for c in chars:
         answer_mod = answer_mod.replace(c, ' ')
-        
+
     splits = [x.strip() for x in answer_mod.split()]
     count = count_choice(splits, choices)
 
@@ -44,6 +45,7 @@ def can_infer_option(answer, choices):
         return 'Z'
     return False
 
+
 def can_infer_text(answer, choices):
     answer = answer.lower()
     assert isinstance(choices, dict)
@@ -57,6 +59,7 @@ def can_infer_text(answer, choices):
     if len(cands) == 1:
         return cands[0]
     return False
+
 
 def can_infer(answer, choices):
     answer = str(answer)

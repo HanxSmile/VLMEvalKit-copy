@@ -7,13 +7,13 @@ from ..smp import *
 from ..utils import DATASET_TYPE, CustomPrompt
 from transformers import AutoModelForCausalLM, LlamaTokenizer
 
-class CogVlm(CustomPrompt):
 
+class CogVlm(CustomPrompt):
     INSTALL_REQ = True
 
-    def __init__(self, 
-                 name='cogvlm-chat',tokenizer_name ='lmsys/vicuna-7b-v1.5',
-                 **kwargs): 
+    def __init__(self,
+                 name='cogvlm-chat', tokenizer_name='lmsys/vicuna-7b-v1.5',
+                 **kwargs):
         self.tokenizer = LlamaTokenizer.from_pretrained(tokenizer_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             f"THUDM/{name}-hf",
@@ -26,12 +26,12 @@ class CogVlm(CustomPrompt):
         if DATASET_TYPE(dataset) == 'multi-choice':
             return True
         return False
-        
+
     def build_prompt(self, line, dataset=None):
         assert dataset is None or isinstance(dataset, str)
         assert self.use_custom_prompt(dataset)
         tgt_path = self.dump_image(line, dataset)
-        
+
         if dataset is not None and DATASET_TYPE(dataset) == 'multi-choice':
             question = line['question']
             hint = line['hint'] if ('hint' in line and not pd.isna(line['hint'])) else None
@@ -60,7 +60,8 @@ class CogVlm(CustomPrompt):
     def generate(self, image_path, prompt, dataset=None):
 
         image = Image.open(image_path).convert('RGB')
-        inputs = self.model.build_conversation_input_ids(self.tokenizer, query=prompt, history=[], images=[image])  # chat mode
+        inputs = self.model.build_conversation_input_ids(self.tokenizer, query=prompt, history=[],
+                                                         images=[image])  # chat mode
         inputs = {
             'input_ids': inputs['input_ids'].unsqueeze(0).to('cuda'),
             'token_type_ids': inputs['token_type_ids'].unsqueeze(0).to('cuda'),

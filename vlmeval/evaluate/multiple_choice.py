@@ -9,13 +9,14 @@ import numpy as np
 INTERNAL = os.environ.get('INTERNAL', 0)
 
 abbrs = {
-    'coarse_perception': 'CP', 
-    'finegrained_perception (instance-level)': 'FP-S', 
-    'finegrained_perception (cross-instance)': 'FP-C', 
+    'coarse_perception': 'CP',
+    'finegrained_perception (instance-level)': 'FP-S',
+    'finegrained_perception (cross-instance)': 'FP-C',
     'logic_reasoning': 'LR',
     'relation_reasoning': 'RR',
     'attribute_reasoning': 'AR'
 }
+
 
 def MMMU_preproc(data):
     logger = get_logger('Evaluation')
@@ -31,6 +32,7 @@ def MMMU_preproc(data):
     data['A'] = As
     data['B'] = Bs
     return data
+
 
 def report_acc(df):
     # assert group in [None, 'category', 'l2-category']
@@ -57,11 +59,12 @@ def report_acc(df):
                 res[ab_name] = [np.mean(sub_df[sub_df['split'] == sp]['hit']) for sp in res['split']]
     return pd.DataFrame(res)
 
+
 def build_prompt(question, options, prediction):
     tmpl = (
         "You are an AI assistant who will help me to match an answer with several options of a single-choice question. "
         "You are provided with a question, several options, and an answer, and you need to find which option is most similar to the answer. "
-        "If the meaning of all options are significantly different from the answer, output Z. "\
+        "If the meaning of all options are significantly different from the answer, output Z. " \
         "Your should output a single uppercase character in A, B, C, D (if they are valid options), and Z. \n"
         "Example 1: \n"
         "Question: What is the main object in image?\nOptions: A. teddy bear B. rabbit C. cat D. dog\nAnswer: a cute teddy bear\nYour output: A\n"
@@ -71,6 +74,7 @@ def build_prompt(question, options, prediction):
         "Question: {}?\nOptions: {}\nAnswer: {}\nYour output: "
     )
     return tmpl.format(question, options, prediction)
+
 
 def build_prompt_cn(question, options, prediction):
     tmpl = (
@@ -87,6 +91,7 @@ def build_prompt_cn(question, options, prediction):
     )
     return tmpl.format(question, options, prediction)
 
+
 def build_choices(item):
     ret = {}
     for ch in string.ascii_uppercase:
@@ -94,9 +99,11 @@ def build_choices(item):
             ret[ch] = item[ch]
     return ret
 
+
 def prefetch_answer(item):
     choices = build_choices(item)
     return can_infer(item['prediction'], choices)
+
 
 def extract_answer_from_item(model, item):
     logger = get_logger('Evaluation')
@@ -111,9 +118,9 @@ def extract_answer_from_item(model, item):
     retry = 3
 
     ret = can_infer(item['prediction'], choices)
-    if ret: 
+    if ret:
         return dict(opt=ret, log=item['prediction'])
-    
+
     while retry:
         ans = model.generate(prompt)
         if 'Failed to obtain answer via API' in ans:
@@ -129,7 +136,8 @@ def extract_answer_from_item(model, item):
         if retry == 0:
             options = list(choices) + ['Z'] if 'Z' not in choices else []
             return dict(opt=rd.choice(options), log='Failed to predict, thus randomly generate one. ')
-            
+
+
 def prefetch_sub_data(sub_data, answer_map, verbose=False):
     lt = len(sub_data)
     GT, PRED = [], []
@@ -144,16 +152,17 @@ def prefetch_sub_data(sub_data, answer_map, verbose=False):
     flag = True
     for g, p in zip(GT, PRED):
         if g != p:
-            flag = False 
-    ret = (dict(hit=1, log="Succeed During Pre-fetching"), ) if flag else (None, )
+            flag = False
+    ret = (dict(hit=1, log="Succeed During Pre-fetching"),) if flag else (None,)
     ret = ret + (GT, PRED) if verbose else ret
     return ret if len(ret) > 1 else ret[0]
-            
+
+
 def eval_sub_data(model, sub_data, answer_map):
     res, GT, PRED = prefetch_sub_data(sub_data, answer_map, verbose=True)
     if res is not None:
         return res
-        
+
     lt = len(sub_data)
     log = ''
     for i in range(lt):
@@ -171,6 +180,7 @@ def eval_sub_data(model, sub_data, answer_map):
 
     return dict(hit=1, log=log)
 
+
 def eval_data_groups(model, data_groups, answer_map, result, result_file, nproc=16):
     prefetched = [prefetch_sub_data(g, answer_map, verbose=False) for g in data_groups]
     remain = []
@@ -184,21 +194,22 @@ def eval_data_groups(model, data_groups, answer_map, result, result_file, nproc=
     keys = [x.iloc[0]['index'] % 1e6 for x in remain]
     if len(tups) == 0:
         return
-    
+
     if model is None:
         logger = get_logger('Evaluation')
         logger.warning("Exact Matching mode, will not do GPT-based answer matching. ")
         for k in keys:
-            result[k] = dict(hit=0, log="Failed in Prefetch, no GPT-based answer matching under `exact_matching` policy.")
+            result[k] = dict(hit=0,
+                             log="Failed in Prefetch, no GPT-based answer matching under `exact_matching` policy.")
         dump(result, result_file)
         return
 
     res = track_progress_rich(
         eval_sub_data,
-        tups, 
+        tups,
         nproc=nproc,
-        chunksize=nproc, 
-        save=result_file, 
+        chunksize=nproc,
+        save=result_file,
         keys=keys)
     result = load(result_file)
     for k, v in zip(keys, res):
@@ -207,6 +218,7 @@ def eval_data_groups(model, data_groups, answer_map, result, result_file, nproc=
         else:
             result[k] = v
     dump(result, result_file)
+
 
 def multiple_choice_eval(eval_file, dataset=None, model='chatgpt-0613', nproc=4, verbose=False):
     logger = get_logger('Evaluation')
@@ -231,19 +243,19 @@ def multiple_choice_eval(eval_file, dataset=None, model='chatgpt-0613', nproc=4,
         model = None
     else:
         model_name = 'chatgpt-0613'
-        
+
         if INTERNAL or gpt_key_set():
             model = build_judge(model_name, verbose=verbose, retry=10)
         else:
             logger.error('OPENAI_API_KEY is not set properly, will use exact matching for evaluation')
             model = None
-    
+
     logger.info(f'Evaluating {eval_file}')
     result_file = eval_file.replace(f'.{suffix}', f'_{name_str}_result.pkl')
     result = {}
     if osp.exists(result_file):
         result = load(result_file)
-        
+
     data = load(eval_file)
     data = data.sort_values(by='index')
     data['prediction'] = [str(x) for x in data['prediction']]
@@ -265,7 +277,7 @@ def multiple_choice_eval(eval_file, dataset=None, model='chatgpt-0613', nproc=4,
     data_main = data[data['index'] < int(1e6)]
     meta_idx_set = set(meta['index'])
     data_main = data_main[data_main['index'].isin(meta_idx_set)]
-    
+
     lt = len(data_main)
     hit, tot = 0, 0
 
@@ -274,26 +286,26 @@ def multiple_choice_eval(eval_file, dataset=None, model='chatgpt-0613', nproc=4,
         # Dealing with the normal part
         item_main = data_main.iloc[i]
         idx = item_main['index']
-        
+
         if idx in result:
             correct = result[idx]['hit']
             assert correct in [0, 1]
             hit += correct
             tot += 1
             continue
-            
+
         sub_data = data[data['index'] % int(1e6) == idx]
         data_groups.append(sub_data)
 
     if len(data_groups):
         eval_data_groups(
-            model=model, 
-            data_groups=data_groups, 
+            model=model,
+            data_groups=data_groups,
             answer_map=answer_map,
-            nproc=nproc, 
-            result=result, 
+            nproc=nproc,
+            result=result,
             result_file=result_file)
-        
+
     tmp_pth = f'/tmp/{timestr()}.xlsx'
     dump(data_main, tmp_pth)
     data_main = load(tmp_pth)
@@ -310,11 +322,11 @@ def multiple_choice_eval(eval_file, dataset=None, model='chatgpt-0613', nproc=4,
         data_main['l2-category'] = [l2_cate_map[i] for i in main_idx]
     if split_map is not None:
         data_main['split'] = [split_map[i] for i in indices]
-    
+
     # load split
     dump(data_main, eval_file.replace(f'.{suffix}', f'_{name_str}_result.{suffix}'))
     data_main = load(eval_file.replace(f'.{suffix}', f'_{name_str}_result.{suffix}'))
-    
+
     acc = report_acc(data_main)
     score_file = eval_file.replace(f'.{suffix}', f'_acc.csv')
     dump(acc, score_file)
@@ -323,21 +335,24 @@ def multiple_choice_eval(eval_file, dataset=None, model='chatgpt-0613', nproc=4,
     logger.info(acc)
     return acc
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Inference LLM Answers. ")
     parser.add_argument("data", type=str, help="The question set for inference, in excel / tsv / json format. ")
-    parser.add_argument("--model", type=str, help="The LLM (GPT) used for inference. ", default='chatgpt-0613', choices=['chatgpt-0613', 'exact_matching'])
+    parser.add_argument("--model", type=str, help="The LLM (GPT) used for inference. ", default='chatgpt-0613',
+                        choices=['chatgpt-0613', 'exact_matching'])
     parser.add_argument(
-        "--dataset", 
-        type=str, 
-        default='MMBench', 
+        "--dataset",
+        type=str,
+        default='MMBench',
         help='The dataset to evaluate')
     parser.add_argument("--nproc", type=int, default=6)
     parser.add_argument("--verbose", action='store_true')
     args = parser.parse_args()
     return args
 
+
 if __name__ == '__main__':
     args = parse_args()
-    acc = multiple_choice_eval(eval_file=args.data, model=args.model, dataset=args.dataset, nproc=args.nproc, verbose=args.verbose)
-    
+    acc = multiple_choice_eval(eval_file=args.data, model=args.model, dataset=args.dataset, nproc=args.nproc,
+                               verbose=args.verbose)

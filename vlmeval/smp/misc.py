@@ -22,19 +22,23 @@ from tabulate import tabulate_formats, tabulate
 from huggingface_hub import scan_cache_dir
 from sty import fg, bg, ef, rs
 
+
 def h2r(value):
     if value[0] == '#':
         value = value[1:]
     assert len(value) == 6
     return tuple(int(value[i:i + 2], 16) for i in range(0, 6, 2))
 
+
 def r2h(rgb):
     return '#%02x%02x%02x' % rgb
+
 
 def colored(s, color):
     if isinstance(color, str):
         color = h2r(color)
     return fg(*color) + s + fg.rs
+
 
 def istype(s, type):
     if isinstance(s, type):
@@ -44,11 +48,13 @@ def istype(s, type):
     except Exception as _:
         return False
 
+
 def bincount(lst):
     bins = defaultdict(lambda: 0)
     for item in lst:
         bins[item] += 1
     return bins
+
 
 def get_cache_path(repo_id):
     hf_cache_info = scan_cache_dir()
@@ -64,23 +70,27 @@ def get_cache_path(repo_id):
     rev2keep, last_modified = None, 0
     for rev in revs:
         if rev.last_modified > last_modified:
-            rev2keep, last_modified = rev, rev.last_modified 
+            rev2keep, last_modified = rev, rev.last_modified
     if rev2keep is None:
         return None
     return str(rev2keep.snapshot_path)
+
 
 def proxy_set(s):
     import os
     for key in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']:
         os.environ[key] = s
 
+
 def get_rank_and_world_size():
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     return local_rank, world_size
 
+
 def splitlen(s, sym='/'):
     return len(s.split(sym))
+
 
 def listinstr(lst, s):
     assert isinstance(lst, list)
@@ -89,8 +99,10 @@ def listinstr(lst, s):
             return True
     return False
 
+
 def d2df(D):
     return pd.DataFrame({x: [D[x]] for x in D})
+
 
 def cn_string(s):
     import re
@@ -98,10 +110,12 @@ def cn_string(s):
         return True
     return False
 
+
 try:
     import decord
 except ImportError:
     pass
+
 
 def timestr(second=True, minute=False):
     s = datetime.datetime.now().strftime('%Y%m%d%H%M%S')[2:]
@@ -112,16 +126,19 @@ def timestr(second=True, minute=False):
     else:
         return s[:-4]
 
+
 def dict_merge(dct, merge_dct):
     for k, _ in merge_dct.items():
-        if (k in dct and isinstance(dct[k], dict) and isinstance(merge_dct[k], dict)):  #noqa
+        if (k in dct and isinstance(dct[k], dict) and isinstance(merge_dct[k], dict)):  # noqa
             dict_merge(dct[k], merge_dct[k])
         else:
             dct[k] = merge_dct[k]
 
+
 def youtube_dl(idx):
     cmd = f'youtube-dl -f best -f mp4 "{idx}"  -o {idx}.mp4'
     os.system(cmd)
+
 
 def run_command(cmd):
     if isinstance(cmd, str):

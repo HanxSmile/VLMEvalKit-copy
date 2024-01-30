@@ -2,21 +2,22 @@ from ..smp import *
 from .dataset_config import img_root_map
 from abc import abstractmethod
 
+
 class CustomPrompt:
 
     @abstractmethod
     def use_custom_prompt(self, dataset):
         raise NotImplementedError
-    
+
     @abstractmethod
     def build_prompt(self, line, dataset):
         raise NotImplementedError
-    
+
     def dump_image(self, line, dataset):
         assert isinstance(dataset, str)
         img_root = osp.join('images', img_root_map[dataset])
         os.makedirs(img_root, exist_ok=True)
-        if isinstance(line['image'], list):        
+        if isinstance(line['image'], list):
             tgt_path = []
             assert 'image_path' in line
             for img, im_name in zip(line['image'], line['image_path']):
