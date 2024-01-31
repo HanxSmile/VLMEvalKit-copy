@@ -1,8 +1,7 @@
 import json
 import pandas as pd
 from collections import defaultdict
-import gradio as gr
-import copy as cp
+
 import numpy as np
 from .misc import listinstr
 
